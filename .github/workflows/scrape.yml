@@ -1,9 +1,9 @@
-name: Scheduled scrape
+name: Scrape into Supabase
 
+# Manual only: Actions -> Scrape into Supabase -> Run workflow.
+# To run it on a schedule again, add e.g.  schedule: [{cron: "23 5 * * 1,4"}]  under "on".
 on:
-  schedule:
-    - cron: "23 5 * * 1,4"   # Monday and Thursday 05:23 UTC; keeps the free Supabase project from pausing
-  workflow_dispatch: {}       # "Run workflow" button for manual runs
+  workflow_dispatch: {}
 
 concurrency:
   group: scrape

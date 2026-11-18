@@ -23,7 +23,7 @@ categories 1 ──< books 1 ──< book_snapshots >── 1 scrape_runs
 | `scripts/supabase_smoke_test.py` | write one row, read it back, check tables |
 | `app/server.py` | Library app: read-only JSON API + serves the page |
 | `render.yaml` | Render Blueprint for hosting the library app |
-| `.github/workflows/scrape.yml` | Twice-weekly scrape into Supabase on GitHub Actions |
+| `.github/workflows/scrape.yml` | Manual scrape into Supabase on GitHub Actions |
 | `app/static/index.html` | Library app UI: title search, subject/price/rating filters, sort, book cards |
 
 ## Run it
@@ -85,12 +85,11 @@ pick this repository → fill in `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` 
 The key stays on the server; the browser only ever sees the read-only JSON API.
 Every push to `main` redeploys the app.
 
-**Scheduled scrape:** `.github/workflows/scrape.yml` runs the tests and then a full scrape into
-Supabase every Monday and Thursday (05:23 UTC). Each run adds a `scrape_runs` row and a
-`book_snapshots` row per book, and the regular activity keeps the free Supabase project from
-pausing after 7 idle days. It needs two repository secrets (Settings → Secrets and variables →
-Actions): `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. Run it by hand from
-**Actions → Scheduled scrape → Run workflow**.
+**Scrape from GitHub (manual):** `.github/workflows/scrape.yml` runs the tests and then a full
+scrape into Supabase when started from **Actions → Scrape into Supabase → Run workflow**. It needs
+two repository secrets (Settings → Secrets and variables → Actions): `SUPABASE_URL` and
+`SUPABASE_SERVICE_ROLE_KEY`. The free Supabase project pauses after 7 days without activity; if
+the app says "database unreachable", restore the project from the Supabase dashboard.
 
 ## Notes
 
