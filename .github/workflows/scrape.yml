@@ -1,0 +1,44 @@
+name: Scheduled scrape
+
+on:
+  schedule:
+    - cron: "23 5 * * 1,4"   # Monday and Thursday 05:23 UTC; keeps the free Supabase project from pausing
+  workflow_dispatch: {}       # "Run workflow" button for manual runs
+
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: python -m unittest discover tests
+
+      - name: Check the Supabase secrets are set
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::error::Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY under Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+
+      - name: Scrape books.toscrape.com into Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scrape.py --sink supabase

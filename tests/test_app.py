@@ -39,3 +39,36 @@ class BookFilterTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UnreachableDatabaseTests(unittest.TestCase):
+    """A paused or unreachable Supabase must give a JSON error, not a dropped connection."""
+
+    def test_api_answers_503(self):
+        import json
+        import threading
+        import urllib.error
+        import urllib.request
+        from http.server import ThreadingHTTPServer
+
+        import requests
+
+        from app.server import make_handler
+
+        class DownLibrary:
+            def categories(self):
+                raise requests.ConnectionError("paused")
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(DownLibrary()))
+        server.RequestHandlerClass.log_message = lambda *a: None
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            url = f"http://127.0.0.1:{server.server_port}/api/categories"
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with self.assertRaises(urllib.error.HTTPError) as ctx:
+                opener.open(url, timeout=5)
+            self.assertEqual(ctx.exception.code, 503)
+            self.assertIn("unreachable", json.loads(ctx.exception.read())["error"])
+        finally:
+            server.shutdown()
+            server.server_close()

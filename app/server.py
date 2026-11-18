@@ -19,6 +19,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+import requests
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from scraper.supabase_client import SupabaseClient, SupabaseError  # noqa: E402
@@ -157,6 +159,10 @@ def make_handler(library: Library):
             except SupabaseError as exc:
                 self.log_error("supabase: %s", exc)
                 self._json({"error": "database error"}, 502)
+            except requests.RequestException as exc:
+                # Supabase unreachable (e.g. the free project is paused): answer instead of dropping the connection.
+                self.log_error("supabase unreachable: %s", exc)
+                self._json({"error": "database unreachable, try again in a minute"}, 503)
 
         def _json(self, data, status=200):
             self._send(json.dumps(data).encode(), "application/json", status)

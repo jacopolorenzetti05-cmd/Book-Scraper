@@ -22,6 +22,8 @@ categories 1 ──< books 1 ──< book_snapshots >── 1 scrape_runs
 | `scrape.py` | CLI |
 | `scripts/supabase_smoke_test.py` | write one row, read it back, check tables |
 | `app/server.py` | Library app: read-only JSON API + serves the page |
+| `render.yaml` | Render Blueprint for hosting the library app |
+| `.github/workflows/scrape.yml` | Twice-weekly scrape into Supabase on GitHub Actions |
 | `app/static/index.html` | Library app UI: title search, subject/price/rating filters, sort, book cards |
 
 ## Run it
@@ -72,6 +74,23 @@ title, price, rating or copies on hand. Click a book for its catalogue card: des
 stock, and its price/stock in each scrape run (`book_snapshots`). The tables are locked by
 RLS, so the server keeps the service_role key and the browser only sees the read-only API.
 The key stays in `.env`, which git ignores: share it privately, never commit it.
+
+## Online and on a schedule
+
+**Live app (Render, free plan):** deployed from `render.yaml`. The free service sleeps after
+15 minutes without visitors, so the first page load can take about a minute.
+
+To deploy it on a Render account: render.com → sign in with GitHub → **New + → Blueprint** →
+pick this repository → fill in `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` → **Apply**.
+The key stays on the server; the browser only ever sees the read-only JSON API.
+Every push to `main` redeploys the app.
+
+**Scheduled scrape:** `.github/workflows/scrape.yml` runs the tests and then a full scrape into
+Supabase every Monday and Thursday (05:23 UTC). Each run adds a `scrape_runs` row and a
+`book_snapshots` row per book, and the regular activity keeps the free Supabase project from
+pausing after 7 idle days. It needs two repository secrets (Settings → Secrets and variables →
+Actions): `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. Run it by hand from
+**Actions → Scheduled scrape → Run workflow**.
 
 ## Notes
 
