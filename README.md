@@ -58,8 +58,8 @@ The app reads Supabase live on every request, so a new scrape shows up on the ne
 refresh. Anyone with repo access can run it on their own computer:
 
 ```bash
-git clone https://github.com/jacopolorenzetti05-cmd/book-scraper
-cd book-scraper
+git clone https://github.com/jacopolorenzetti05-cmd/Book-Scraper
+cd Book-Scraper
 pip install -r requirements.txt
 cp .env.example .env     # fill in SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (ask the project owner)
 python app/server.py     # then open http://localhost:8000
