@@ -27,7 +27,6 @@ categories 1 ──< books 1 ──< book_snapshots >── 1 scrape_runs
 ## Run it
 
 ```bash
-cd book_scraper
 pip install -r requirements.txt
 
 # Offline tests
@@ -59,16 +58,14 @@ The app reads Supabase live on every request, so a new scrape shows up on the ne
 refresh. Anyone with repo access can run it on their own computer:
 
 ```bash
-git clone https://github.com/jacopolorenzetti05-cmd/chrome-extension
-cd chrome-extension
-git checkout claude/book-scraper-database-j58d5g
-cd book_scraper
+git clone https://github.com/jacopolorenzetti05-cmd/book-scraper
+cd book-scraper
 pip install -r requirements.txt
 cp .env.example .env     # fill in SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (ask the project owner)
 python app/server.py     # then open http://localhost:8000
 ```
 
-Run it from the `book_scraper` folder so it finds `.env`. Use `--port 8080` if 8000 is taken.
+Run it from the repository root so it finds `.env`. Use `--port 8080` if 8000 is taken.
 
 Search by title, filter by subject (category), price range and minimum rating, and sort by
 title, price, rating or copies on hand. Click a book for its catalogue card: description,
@@ -82,3 +79,9 @@ The key stays in `.env`, which git ignores: share it privately, never commit it.
   book) — see DESIGN.md.
 * Uses the `service_role` key, which bypasses Row Level Security. To use the `anon`
   key instead, add RLS policies that allow inserts/updates on these tables.
+
+## History
+
+This project was first developed inside the `Chrome-Extension` repository and moved here
+with its full commit history. An earlier, simpler SQLite-only version (CLI with
+`sample` / `smoke` / `check` / `run` commands) is kept on the `v1-sqlite` branch.
