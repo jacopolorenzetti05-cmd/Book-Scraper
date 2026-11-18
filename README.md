@@ -1,5 +1,8 @@
 # Book scraper → linked database
 
+**Live library app: https://book-scraper-library.onrender.com** (free hosting: the first visit after
+a quiet spell takes about a minute to wake up)
+
 Scrapes **books.toscrape.com** (only) into a relational schema in Supabase, or into a
 local SQLite file for testing. Design notes: [`docs/DESIGN.md`](docs/DESIGN.md).
 
@@ -77,7 +80,7 @@ The key stays in `.env`, which git ignores: share it privately, never commit it.
 
 ## Online and on a schedule
 
-**Live app (Render, free plan):** deployed from `render.yaml`. The free service sleeps after
+**Live app (Render, free plan):** https://book-scraper-library.onrender.com, deployed from `render.yaml`. The free service sleeps after
 15 minutes without visitors, so the first page load can take about a minute.
 
 To deploy it on a Render account: render.com → sign in with GitHub → **New + → Blueprint** →
