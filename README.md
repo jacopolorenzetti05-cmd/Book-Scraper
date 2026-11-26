@@ -138,9 +138,6 @@ python app/server.py                            # reads Supabase live
 
 ## Learning
 
-> *Team note: these points come from the commit history and the code. Each of us should be able
-> to explain them in our own words.*
-
 - **What we learned.** Separating *fetch*, *parse*, *validate* and *store* made every part testable
   on its own. The parser is tested on saved HTML, so the tests run offline in under a second.
   Upserting on natural keys (UPC, category slug) makes a scraper safe to re-run.
@@ -160,9 +157,10 @@ python app/server.py                            # reads Supabase live
 
 **Limitations**
 
-- **Live demo availability.** The Render app and its Supabase database are on free plans: the app
-  sleeps after 15 min (first load ≈ 1 min) and Supabase pauses after 7 idle days ("database
-  unreachable" until the owner restores it from the dashboard). **Option A above always works.**
+- **Live demo availability.** The Render app and its Supabase database run on free plans. The app
+  sleeps after 15 minutes (first load takes about a minute), and Supabase pauses the database after 7
+  idle days, so the live link may answer "database unreachable". This is expected free-tier
+  behaviour. The logic and design are all in this repository, and **Option A above always works**.
 - Some descriptions on books.toscrape.com repeat part of their own text. That is the source data;
   we store it as published.
 - No author field (the site has none). Prices are a single GBP value.

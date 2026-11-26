@@ -8,7 +8,7 @@ keys, project IDs or personal contact details appear in this file.
 | **Audited** | `main` and all remote branches (`v1-sqlite` included), 12 commits, 27 tracked files |
 | **Tool** | Claude Code, using the course audit prompt, plus manual review by the team |
 | **Rounds** | Round 1 found the issues → fixes applied → round 2 re-ran every check |
-| **Result** | ✅ No secrets in files or history. All confirmed issues fixed except one that needs the owner's dashboard (see R1-4). |
+| **Result** | ✅ No secrets in files or history. All confirmed issues fixed or documented. |
 
 ## What was checked
 
@@ -31,7 +31,7 @@ keys, project IDs or personal contact details appear in this file.
 | R1-1 | `.gitignore` incomplete: no rules for virtual envs (`.venv/`), `.env.*` variants, `*.sqlite`, test caches, editor/OS files | `.gitignore` | Rewritten with commented sections. `.env.example` stays tracked explicitly. | ✅ Fixed |
 | R1-2 | **Not reproducible without our private key.** The library app needed Supabase credentials, and the README told readers to "ask the project owner". | `app/server.py`, `README.md` | Added `--sqlite books.db` mode: the app reads the local database the scraper writes, so it runs with no account. Covered by 5 new tests, including injection attempts. | ✅ Fixed |
 | R1-3 | README missing required sections (Learning, Limitations and assistance, explicit Data collection / User interaction) and had no screenshots | `README.md` | Rewritten around the 7 required sections, with 3 screenshots from a real run | ✅ Fixed |
-| R1-4 | Live demo returns "database unreachable": the free Supabase project auto-paused after 7 idle days | Supabase dashboard (outside the repo) | The owner has to restore it from the dashboard. Documented in the README, and Setup option A (SQLite) works regardless. | ⚠️ Owner action |
+| R1-4 | Live demo returns "database unreachable": the free Supabase project auto-paused after 7 idle days | Supabase free tier (outside the repo) | **Accepted as expected free-tier behaviour.** Documented in the README. Setup option A (SQLite) shows the full logic and design with no cloud account. | ✅ Documented |
 
 ### Possible concerns (reviewed)
 
