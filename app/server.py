@@ -8,12 +8,15 @@ server holds the service_role key and exposes a read-only JSON API to the page.
     GET /api/categories                   all categories with their book counts
     GET /api/books?q=&category=&min_price=&max_price=&min_rating=&sort=&page=
     GET /api/books/<upc>                  one book plus its price/stock per scrape run
+
+Offline (no Supabase key needed): python app/server.py --sqlite books.db
 """
 
 from __future__ import annotations
 
 import json
 import re
+import sqlite3
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -138,6 +141,105 @@ class Library:
         return book
 
 
+SQLITE_SORTS = {
+    "title": "b.title ASC",
+    "price_asc": "CAST(b.price AS REAL) ASC, b.title ASC",
+    "price_desc": "CAST(b.price AS REAL) DESC, b.title ASC",
+    "rating": "b.rating DESC, b.title ASC",
+    "stock": "b.stock DESC, b.title ASC",
+}
+SQLITE_BOOK_SELECT = (
+    "SELECT b.upc, b.title, CAST(b.price AS REAL) AS price, b.stock, b.rating, b.description, "
+    "b.image_url, b.url, b.category_slug, c.name AS category_name "
+    "FROM books b JOIN categories c ON c.slug = b.category_slug"
+)
+
+
+class SqliteLibrary:
+    """Same queries as `Library`, read from the local SQLite file the scraper writes.
+
+    Lets anyone run the app with no Supabase account:
+        python scrape.py --sink sqlite --limit 200
+        python app/server.py --sqlite books.db
+    Every user value is validated the same way as for Supabase and passed as a bound parameter.
+    """
+
+    def __init__(self, path: str):
+        if not Path(path).exists():
+            raise FileNotFoundError(f"{path} not found: run `python scrape.py --sink sqlite` first")
+        # Read-only connection: the app never writes. check_same_thread=False because the
+        # server answers each request on its own thread; reads on one connection are safe.
+        uri = Path(path).resolve().as_uri() + "?mode=ro"
+        self.conn = sqlite3.connect(uri, uri=True, check_same_thread=False)
+        self.conn.row_factory = sqlite3.Row
+
+    def categories(self) -> list[dict]:
+        rows = self.conn.execute(
+            "SELECT c.slug, c.name, COUNT(b.upc) AS count FROM categories c "
+            "LEFT JOIN books b ON b.category_slug = c.slug GROUP BY c.slug ORDER BY c.name"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def books(self, params: dict[str, str]) -> dict:
+        book_filters(params)  # same validation as the Supabase path; raises BadRequest
+        where, args = [], []
+        q = re.sub(r"[*%_]", " ", params.get("q", "").strip())[:100].strip()
+        if q:
+            where.append("b.title LIKE ?")
+            args.append(f"%{q}%")
+        if params.get("category"):
+            where.append("b.category_slug = ?")
+            args.append(params["category"])
+        if params.get("min_price"):
+            where.append("CAST(b.price AS REAL) >= ?")
+            args.append(_number(params["min_price"]))
+        if params.get("max_price"):
+            where.append("CAST(b.price AS REAL) <= ?")
+            args.append(_number(params["max_price"]))
+        if params.get("min_rating"):
+            where.append("b.rating >= ?")
+            args.append(int(_number(params["min_rating"])))
+        clause = (" WHERE " + " AND ".join(where)) if where else ""
+        order = SQLITE_SORTS.get(params.get("sort", ""), SQLITE_SORTS["title"])
+        page = int(_number(params.get("page") or "1"))
+        total = self.conn.execute(
+            f"SELECT COUNT(*) FROM books b{clause}", args).fetchone()[0]
+        rows = self.conn.execute(
+            f"{SQLITE_BOOK_SELECT}{clause} ORDER BY {order} LIMIT ? OFFSET ?",
+            [*args, PAGE_SIZE, (page - 1) * PAGE_SIZE],
+        ).fetchall()
+        columns = LIST_COLUMNS.split(",")
+        return {"books": [{k: r[k] for k in columns} for r in rows], "total": total,
+                "page_size": PAGE_SIZE}
+
+    def book(self, upc: str) -> dict | None:
+        if not UPC_RE.match(upc):
+            raise BadRequest("bad upc")
+        row = self.conn.execute(f"{SQLITE_BOOK_SELECT} WHERE b.upc = ?", (upc,)).fetchone()
+        if not row:
+            return None
+        history = self.conn.execute(
+            "SELECT s.run_id, CAST(s.price AS REAL) AS price, s.stock, r.finished_at AS date "
+            "FROM book_snapshots s LEFT JOIN scrape_runs r ON r.id = s.run_id "
+            "WHERE s.upc = ? ORDER BY s.run_id", (upc,),
+        ).fetchall()
+        return {**dict(row), "history": [dict(h) for h in history]}
+
+
+# Sent with every response. The page itself needs inline script/style and Google Fonts.
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Content-Security-Policy": (
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src https://fonts.gstatic.com; img-src 'self' https://books.toscrape.com; "
+        "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+    ),
+}
+
+
 def make_handler(library: Library):
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -174,6 +276,8 @@ def make_handler(library: Library):
             self.send_response(status)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
+            for name, value in SECURITY_HEADERS.items():
+                self.send_header(name, value)
             self.end_headers()
             self.wfile.write(body)
 
@@ -186,15 +290,24 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Serve the library app.")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--sqlite", metavar="FILE",
+                    help="read a local SQLite file (e.g. books.db) instead of Supabase")
     args = ap.parse_args()
 
     try:
-        client = SupabaseClient.from_env()
-    except SupabaseError as exc:
+        if args.sqlite:
+            library = SqliteLibrary(args.sqlite)
+            source = f"SQLite file {args.sqlite}"
+        else:
+            library = Library(SupabaseClient.from_env())
+            source = "Supabase"
+    except (SupabaseError, FileNotFoundError) as exc:
         print(exc)
+        if not args.sqlite:
+            print("No Supabase credentials? Run offline: python app/server.py --sqlite books.db")
         return 1
-    server = ThreadingHTTPServer((args.host, args.port), make_handler(Library(client)))
-    print(f"Library open at http://{args.host}:{args.port}")
+    server = ThreadingHTTPServer((args.host, args.port), make_handler(library))
+    print(f"Library open at http://{args.host}:{args.port} (data: {source})")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

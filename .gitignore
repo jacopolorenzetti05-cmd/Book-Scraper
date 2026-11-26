@@ -1,3 +1,23 @@
+# Secrets: real Supabase keys live only in .env (see .env.example)
 .env
+.env.*
+!.env.example
+
+# Local databases produced by `python scrape.py --sink sqlite`
 *.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# Python caches and virtual environments
 __pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+*.log
